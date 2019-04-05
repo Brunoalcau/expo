@@ -9,12 +9,15 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Base64;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.SimpleTarget;
+import com.bumptech.glide.request.transition.Transition;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
 
 import org.unimodules.core.ExportedModule;
 import org.unimodules.core.ModuleRegistry;
@@ -22,7 +25,7 @@ import org.unimodules.core.Promise;
 import org.unimodules.core.arguments.ReadableArguments;
 import org.unimodules.core.interfaces.ExpoMethod;
 import org.unimodules.core.interfaces.ModuleRegistryConsumer;
-import org.unimodules.interfaces.imageloader.ImageLoader;
+
 import expo.modules.imagemanipulator.arguments.Action;
 import expo.modules.imagemanipulator.arguments.ActionCrop;
 import expo.modules.imagemanipulator.arguments.ActionFlip;
@@ -32,8 +35,6 @@ import expo.modules.imagemanipulator.arguments.SaveOptions;
 public class ImageManipulatorModule extends ExportedModule implements ModuleRegistryConsumer {
   private static final String TAG = "ExpoImageManipulator";
   private static final String ERROR_TAG = "E_IMAGE_MANIPULATOR";
-  private ModuleRegistry mModuleRegistry;
-  private ImageLoader mImageLoader;
 
   public ImageManipulatorModule(Context context) {
     super(context);
@@ -46,8 +47,6 @@ public class ImageManipulatorModule extends ExportedModule implements ModuleRegi
 
   @Override
   public void setModuleRegistry(ModuleRegistry moduleRegistry) {
-    mModuleRegistry = moduleRegistry;
-    mImageLoader = mModuleRegistry.getModule(ImageLoader.class);
   }
 
   @ExpoMethod
@@ -69,25 +68,15 @@ public class ImageManipulatorModule extends ExportedModule implements ModuleRegi
       return;
     }
 
-
-    mImageLoader.loadImageFromURL(uri, new ImageLoader.ResultListener() {
-      @Override
-      public void onSuccess(@NonNull Bitmap bitmap) {
-        processBitmapWithActions(bitmap, manipulatorActions, manipulatorSaveOptions, promise);
-      }
-
-      @Override
-      public void onFailure(@Nullable Throwable cause) {
-        // No cleanup required here.
-        String basicMessage = "Could not get decoded bitmap of " + uri;
-        if (cause != null) {
-          promise.reject(ERROR_TAG + "_DECODE",
-              basicMessage + ": " + cause.toString(), cause);
-        } else {
-          promise.reject(ERROR_TAG + "_DECODE", basicMessage + ".");
-        }
-      }
-    });
+    Glide.with(getContext())
+        .asBitmap()
+        .load(uri)
+        .into(new SimpleTarget<Bitmap>() {
+          @Override
+          public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
+            processBitmapWithActions(resource, manipulatorActions, manipulatorSaveOptions, promise);
+          }
+        });
   }
 
   private Bitmap resizeBitmap(Bitmap bitmap, ActionResize resize) {
